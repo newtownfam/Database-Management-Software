@@ -5,6 +5,21 @@ import simpledb.file.*;
 import java.util.HashMap;
 import java.util.LinkedList;
 
+class BufferTuple {
+   int index;
+   Buffer buff;
+
+   BufferTuple() {
+      index = -1;
+      buff = null;
+   }
+
+   public BufferTuple(int index, Buffer buff) {
+      this.index = index;
+      this.buff = buff;
+   }
+}
+
 /**
  * Manages the pinning and unpinning of buffers to blocks.
  * @author Edward Sciore
@@ -14,7 +29,8 @@ class BasicBufferMgr {
    private Buffer[] bufferpool;
    private int numAvailable;
    private LinkedList<Integer> emptyList = new LinkedList<>();
-   private HashMap<Integer, Buffer> buffMap = new HashMap<>();
+   // <blockID, index>
+   private HashMap<Integer, Integer> buffMap = new HashMap<>();
    
    /**
     * Creates a buffer manager having the specified number 
@@ -56,12 +72,15 @@ class BasicBufferMgr {
     * @return the pinned buffer
     */
    synchronized Buffer pin(Block blk) {
+      BufferTuple tuple;
       Buffer buff = findExistingBuffer(blk);
       if (buff == null) {
-         buff = chooseUnpinnedBuffer();
+         tuple = chooseUnpinnedBuffer();
+         buff = tuple.buff;
          if (buff == null)
             return null;
          buff.assignToBlock(blk);
+         buffMap.put(blk.blknum, tuple.index);
       }
       if (!buff.isPinned())
          numAvailable--;
@@ -79,10 +98,12 @@ class BasicBufferMgr {
     * @return the pinned buffer
     */
    synchronized Buffer pinNew(String filename, PageFormatter fmtr) {
-      Buffer buff = chooseUnpinnedBuffer();
+      BufferTuple tuple = chooseUnpinnedBuffer();
+      Buffer buff = tuple.buff;
       if (buff == null)
          return null;
       buff.assignToNew(filename, fmtr);
+      buffMap.put(buff.block().blknum, tuple.index);
       numAvailable--;
       buff.pin();
       return buff;
@@ -112,10 +133,9 @@ class BasicBufferMgr {
     * @return the buffer containing the block, or null if no buffer contains the block
     */
    private Buffer findExistingBuffer(Block blk) {
-      for (Buffer buff : bufferpool) {
-         Block b = buff.block();
-         if (b != null && b.equals(blk))
-            return buff;
+      if (buffMap.containsKey(blk.blknum)) {
+         int num = buffMap.get(blk.blknum);
+         return bufferpool[num];
       }
       return null;
    }
@@ -124,10 +144,10 @@ class BasicBufferMgr {
     * Checks for an empty frame, or unpinned frame if none are empty
     * @return the frame for a block to be placed in
     */
-   private Buffer chooseUnpinnedBuffer() {
+   private BufferTuple chooseUnpinnedBuffer() {
       // if there is an empty frame available, return it
-      Buffer empty = findEmptyBuffer();
-      if (empty != null) {
+      BufferTuple empty = findEmptyBuffer();
+      if (empty.buff != null) {
          return empty;
       }
 
@@ -138,19 +158,19 @@ class BasicBufferMgr {
             if (buff.block() == null) {
                emptyList.remove(i);
             }
-            return buff;
+            return new BufferTuple(i, buff);
          }
          i++;
       }
-      return null;
+      return new BufferTuple();
    }
 
    /**
     * Returns an empty buffer in constant time using a linked list
     * @return an empty buffer
     */
-   private Buffer findEmptyBuffer() {
-      if (emptyList != null) { return bufferpool[emptyList.getFirst()]; }
-      else return null;
+   private BufferTuple findEmptyBuffer() {
+      if (emptyList != null) { return new BufferTuple(emptyList.getFirst(), bufferpool[emptyList.getFirst()]); }
+      else return new BufferTuple();
    }
 }

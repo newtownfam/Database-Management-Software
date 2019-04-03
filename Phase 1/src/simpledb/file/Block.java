@@ -9,7 +9,7 @@ package simpledb.file;
  */
 public class Block {
    private String filename;
-   private int blknum;
+   public int blknum;
    
    /**
     * Constructs a block reference 
