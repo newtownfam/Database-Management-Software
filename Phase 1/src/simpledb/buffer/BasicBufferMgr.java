@@ -2,6 +2,9 @@ package simpledb.buffer;
 
 import simpledb.file.*;
 
+import java.util.HashMap;
+import java.util.LinkedList;
+
 /**
  * Manages the pinning and unpinning of buffers to blocks.
  * @author Edward Sciore
@@ -10,6 +13,8 @@ import simpledb.file.*;
 class BasicBufferMgr {
    private Buffer[] bufferpool;
    private int numAvailable;
+   private LinkedList<Integer> emptyList = new LinkedList<>();
+   private HashMap<Integer, Buffer> buffMap = new HashMap<>();
    
    /**
     * Creates a buffer manager having the specified number 
@@ -100,7 +105,12 @@ class BasicBufferMgr {
    int available() {
       return numAvailable;
    }
-   
+
+   /**
+    * Checks if a block exists in a buffer
+    * @param blk the block being searched for
+    * @return the buffer containing the block, or null if no buffer contains the block
+    */
    private Buffer findExistingBuffer(Block blk) {
       for (Buffer buff : bufferpool) {
          Block b = buff.block();
@@ -109,11 +119,38 @@ class BasicBufferMgr {
       }
       return null;
    }
-   
+
+   /**
+    * Checks for an empty frame, or unpinned frame if none are empty
+    * @return the frame for a block to be placed in
+    */
    private Buffer chooseUnpinnedBuffer() {
-      for (Buffer buff : bufferpool)
-         if (!buff.isPinned())
-         return buff;
+      // if there is an empty frame available, return it
+      Buffer empty = findEmptyBuffer();
+      if (empty != null) {
+         return empty;
+      }
+
+      // if there is no empty frame, then find an unpinned frame to replace
+      int i = 0;
+      for (Buffer buff : bufferpool) {
+         if (!buff.isPinned()) {
+            if (buff.block() == null) {
+               emptyList.remove(i);
+            }
+            return buff;
+         }
+         i++;
+      }
       return null;
+   }
+
+   /**
+    * Returns an empty buffer in constant time using a linked list
+    * @return an empty buffer
+    */
+   private Buffer findEmptyBuffer() {
+      if (emptyList != null) { return bufferpool[emptyList.getFirst()]; }
+      else return null;
    }
 }
