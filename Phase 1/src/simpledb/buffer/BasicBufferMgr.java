@@ -14,7 +14,7 @@ class BufferTuple {
       buff = null;
    }
 
-   public BufferTuple(int index, Buffer buff) {
+   BufferTuple(int index, Buffer buff) {
       this.index = index;
       this.buff = buff;
    }
