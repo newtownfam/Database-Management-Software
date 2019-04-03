@@ -14,8 +14,10 @@ class BasicBufferMgr {
    private Buffer[] bufferpool;
    private int numAvailable;
    private LinkedList<Integer> emptyList = new LinkedList<>();
-   private HashMap<Integer, Buffer> buffMap = new HashMap<>();
-   
+
+   // <block id, buffer index>
+   private HashMap<Integer, Integer> buffMap = new HashMap<>();
+
    /**
     * Creates a buffer manager having the specified number 
     * of buffer slots.
@@ -32,8 +34,10 @@ class BasicBufferMgr {
    BasicBufferMgr(int numbuffs) {
       bufferpool = new Buffer[numbuffs];
       numAvailable = numbuffs;
-      for (int i=0; i<numbuffs; i++)
+      for (int i=0; i<numbuffs; i++) {
          bufferpool[i] = new Buffer();
+         emptyList.add(i);
+      }
    }
    
    /**
@@ -135,9 +139,6 @@ class BasicBufferMgr {
       int i = 0;
       for (Buffer buff : bufferpool) {
          if (!buff.isPinned()) {
-            if (buff.block() == null) {
-               emptyList.remove(i);
-            }
             return buff;
          }
          i++;
@@ -150,7 +151,12 @@ class BasicBufferMgr {
     * @return an empty buffer
     */
    private Buffer findEmptyBuffer() {
-      if (emptyList != null) { return bufferpool[emptyList.getFirst()]; }
+      if (emptyList.size() > 0) {
+         Buffer buff = bufferpool[emptyList.getFirst()];
+         emptyList.remove(emptyList.getFirst());
+         System.out.println("Found an empty frame!");
+         return buff;
+      }
       else return null;
    }
 }
