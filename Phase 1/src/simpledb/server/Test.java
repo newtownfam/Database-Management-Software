@@ -8,6 +8,9 @@ public class Test {
         int z; // to keep the repeated code warning away;
         // configure and initialize the database
         SimpleDB.init(args[0]);
+        // print out toString method
+        String test = SimpleDB.bufferMgr().toString();
+        System.out.println(test);
         // create a registry specific for the server on the default port
         Registry reg = LocateRegistry.createRegistry(1099);
 

@@ -128,12 +128,6 @@ public class BufferMgr {
     */
    @Override
    public String toString() {
-      String ans = "";
-      int i = 0;
-      for (Buffer buff:bufferMgr.getBufferpool()) {
-         ans = ans.concat("Item " + i + " in Bufferpool: \n" + buff.toString() + "\n");
-         i++;
-      }
-      return ans;
+      return bufferMgr.toString();
    }
 }
