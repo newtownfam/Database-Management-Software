@@ -177,6 +177,10 @@ class BasicBufferMgr {
       else return null;
    }
 
+    /**
+     * function to calculate least recently used buffer in pool
+     * @return lru buffer
+     */
    private Buffer leastRecentlyUsed() {
       long lruTime = bufferpool[0].getTime();
       Buffer lruBuff = bufferpool[0];
@@ -187,5 +191,28 @@ class BasicBufferMgr {
          }
       }
       return lruBuff;
+   }
+
+    /**
+     * getter for bufferpool in BufferMgr class
+     ** @return
+     */
+    Buffer[] getBufferpool() {
+        return bufferpool;
+    }
+
+    /**
+     * Override of toString method to return info on all buffers in bufferpool concatenated into one string
+     * @return string concatenation
+     */
+   @Override
+   public String toString() {
+       String ans = "";
+       int i = 0;
+      for (Buffer buff:bufferpool) {
+          ans = ans.concat("Item " + i + " in Bufferpool: \n" + buff.toString() + "\n");
+          i++;
+      }
+      return ans;
    }
 }

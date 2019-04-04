@@ -121,4 +121,19 @@ public class BufferMgr {
    private boolean waitingTooLong(long starttime) {
       return System.currentTimeMillis() - starttime > MAX_TIME;
    }
+
+   /**
+    * Override of toString method to return info on all buffers in bufferpool concatenated into one string
+    * @return string concatenation
+    */
+   @Override
+   public String toString() {
+      String ans = "";
+      int i = 0;
+      for (Buffer buff:bufferMgr.getBufferpool()) {
+         ans = ans.concat("Item " + i + " in Bufferpool: \n" + buff.toString() + "\n");
+         i++;
+      }
+      return ans;
+   }
 }

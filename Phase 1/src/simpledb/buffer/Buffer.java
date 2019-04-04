@@ -212,4 +212,15 @@ public class Buffer {
       this.time = time;
    }
 
+   /**
+    * print out info for a given buffer. Assuming index in bufferpool is the bufferID. Also returns
+    * block info and pin info
+    * @return string concatenation of above
+    */
+   @Override
+   public String toString() {
+      // buffer's id, the block it is allocated to, and whether the buffer is pinned
+      return "BufferID: " + index + "; Block: " + block().toString() + "; Pinned: " + pins;
+   }
+
 }
