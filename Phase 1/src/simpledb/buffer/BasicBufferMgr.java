@@ -79,7 +79,9 @@ class BasicBufferMgr {
 
          // add an entry to the buffer in the hashmap
          buffMap.put(blk, index);
-         int i = 0;
+
+         // set the current time for the LRU policy
+         buff.setTime(System.currentTimeMillis());
       }
       if (!buff.isPinned())
          numAvailable--;
@@ -106,6 +108,9 @@ class BasicBufferMgr {
       // add an entry to the buffer in the hashmap
       buffMap.put(buff.block(), index);
 
+      // set the current time for the LRU policy
+      buff.setTime(System.currentTimeMillis());
+
       numAvailable--;
       buff.pin();
       return buff;
@@ -130,7 +135,7 @@ class BasicBufferMgr {
    }
 
    /**
-    * Checks if a block exists in a buffer
+    * Checks if a block exists in a buffer, return it using a hashmap in constant time
     * @param blk the block being searched for
     * @return the buffer containing the block, or null if no buffer contains the block
     */
@@ -154,15 +159,16 @@ class BasicBufferMgr {
       }
 
       // if there is no empty frame, then find an unpinned frame to replace
-      int i = 0;
-      for (Buffer buff : bufferpool) {
+      /*for (Buffer buff : bufferpool) {
          if (!buff.isPinned()) {
             buffMap.remove(buff.block());
             return buff;
          }
-         i++;
-      }
-      return null;
+      } */
+
+      Buffer lruBuff = leastRecentlyUsed();
+      buffMap.remove(lruBuff.block());
+      return lruBuff;
    }
 
    /**
@@ -177,5 +183,17 @@ class BasicBufferMgr {
          return buff;
       }
       else return null;
+   }
+
+   private Buffer leastRecentlyUsed() {
+      long lruTime = bufferpool[0].getTime();
+      Buffer lruBuff = bufferpool[0];
+      for (Buffer buff: bufferpool) {
+         if (buff.getTime() < lruTime && !buff.isPinned()) {
+            lruTime = buff.getTime();
+            lruBuff = buff;
+         }
+      }
+      return lruBuff;
    }
 }

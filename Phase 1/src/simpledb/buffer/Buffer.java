@@ -15,11 +15,12 @@ import simpledb.file.*;
  */
 public class Buffer {
    private Page contents = new Page();
-   public Block blk = null;
+   private Block blk = null;
    private int index = -1;
    private int pins = 0;
    private int modifiedBy = -1;  // negative means not modified
    private int logSequenceNumber = -1; // negative means no corresponding log record
+   private long time = -1;
 
    /**
     * Creates a new buffer, wrapping a new 
@@ -191,7 +192,6 @@ public class Buffer {
 
    /**
     * Getter and setter for index
-    * @return
     */
    public int getIndex() {
       return index;
@@ -200,4 +200,16 @@ public class Buffer {
    public void setIndex(int index) {
       this.index = index;
    }
+
+   /**
+    * Getter and setter for time
+    */
+   public long getTime() {
+      return time;
+   }
+
+   public void setTime(long time) {
+      this.time = time;
+   }
+
 }
