@@ -15,7 +15,8 @@ import simpledb.file.*;
  */
 public class Buffer {
    private Page contents = new Page();
-   private Block blk = null;
+   public Block blk = null;
+   private int index = -1;
    private int pins = 0;
    private int modifiedBy = -1;  // negative means not modified
    private int logSequenceNumber = -1; // negative means no corresponding log record
@@ -186,5 +187,17 @@ public class Buffer {
       fmtr.format(contents);
       blk = contents.append(filename);
       pins = 0;
+   }
+
+   /**
+    * Getter and setter for index
+    * @return
+    */
+   public int getIndex() {
+      return index;
+   }
+
+   public void setIndex(int index) {
+      this.index = index;
    }
 }
