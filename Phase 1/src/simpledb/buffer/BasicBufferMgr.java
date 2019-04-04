@@ -16,7 +16,7 @@ class BasicBufferMgr {
    private LinkedList<Integer> emptyList = new LinkedList<>();
 
    // <block id, buffer index>
-   private HashMap<Integer, Integer> buffMap = new HashMap<>();
+   private HashMap<Block, Integer> buffMap = new HashMap<>();
 
    /**
     * Creates a buffer manager having the specified number
@@ -34,11 +34,18 @@ class BasicBufferMgr {
    BasicBufferMgr(int numbuffs) {
       bufferpool = new Buffer[numbuffs];
       numAvailable = numbuffs;
+      int x = -1;
       for (int i=0; i<numbuffs; i++) {
-         Buffer buff = new Buffer();
-         buff.setIndex(i);
-         bufferpool[i] = buff;
-         emptyList.add(i);
+
+      	// create a new buffer and set the index so it can be easily found later
+      	Buffer buff = new Buffer();
+      	buff.setIndex(i);
+
+      	// add the buffer to the buffer pool
+      	bufferpool[i] = buff;
+
+      	// since the pool buffers are empty have the empty list point to all buffers
+      	emptyList.add(i);
       }
    }
 
@@ -67,8 +74,12 @@ class BasicBufferMgr {
          buff = chooseUnpinnedBuffer();
          if (buff == null)
             return null;
+         int index = buff.getIndex();
          buff.assignToBlock(blk);
-         buffMap.put(buff.block().number(), buff.getIndex());
+
+         // add an entry to the buffer in the hashmap
+         buffMap.put(blk, index);
+         int i = 0;
       }
       if (!buff.isPinned())
          numAvailable--;
@@ -89,8 +100,12 @@ class BasicBufferMgr {
       Buffer buff = chooseUnpinnedBuffer();
       if (buff == null)
          return null;
+      int index = buff.getIndex();
       buff.assignToNew(filename, fmtr);
-      buffMap.put(buff.block().number(), buff.getIndex());
+
+      // add an entry to the buffer in the hashmap
+      buffMap.put(buff.block(), index);
+
       numAvailable--;
       buff.pin();
       return buff;
@@ -120,12 +135,11 @@ class BasicBufferMgr {
     * @return the buffer containing the block, or null if no buffer contains the block
     */
    private Buffer findExistingBuffer(Block blk) {
-      for (Buffer buff : bufferpool) {
-         Block b = buff.block();
-         if (b != null && b.equals(blk))
-            return buff;
-      }
-      return null;
+      // check the hashmap if the block exists in the buffer pool
+	   if(buffMap.containsKey(blk)) {
+	   	 return bufferpool[buffMap.get(blk)];
+	   }
+	   return null;
    }
 
    /**
@@ -143,7 +157,7 @@ class BasicBufferMgr {
       int i = 0;
       for (Buffer buff : bufferpool) {
          if (!buff.isPinned()) {
-            buffMap.remove(buff.block().number());
+            buffMap.remove(buff.block());
             return buff;
          }
          i++;
@@ -158,7 +172,6 @@ class BasicBufferMgr {
    private Buffer findEmptyBuffer() {
       if (emptyList.size() > 0) {
          Buffer buff = bufferpool[emptyList.getFirst()];
-         // add to buffMap
          emptyList.remove(emptyList.getFirst());
          System.out.println("Found an empty frame!");
          return buff;
