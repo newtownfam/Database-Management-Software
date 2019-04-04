@@ -158,14 +158,6 @@ class BasicBufferMgr {
          return empty;
       }
 
-      // if there is no empty frame, then find an unpinned frame to replace
-      /*for (Buffer buff : bufferpool) {
-         if (!buff.isPinned()) {
-            buffMap.remove(buff.block());
-            return buff;
-         }
-      } */
-
       Buffer lruBuff = leastRecentlyUsed();
       buffMap.remove(lruBuff.block());
       return lruBuff;
