@@ -34,7 +34,6 @@ class AdvancedBufferMgr {
     AdvancedBufferMgr(int numbuffs) {
         bufferpool = new Buffer[numbuffs];
         numAvailable = numbuffs;
-        int x = -1;
         for (int i=0; i<numbuffs; i++) {
 
             // create a new buffer and set the index so it can be easily found later
@@ -159,8 +158,11 @@ class AdvancedBufferMgr {
         }
 
         Buffer lruBuff = leastRecentlyUsed();
-        buffMap.remove(lruBuff.block());
-        return lruBuff;
+        if (lruBuff != null) {
+            buffMap.remove(lruBuff.block());
+            return lruBuff;
+        }
+        return null;
     }
 
     /**
@@ -171,7 +173,6 @@ class AdvancedBufferMgr {
         if (emptyList.size() > 0) {
             Buffer buff = bufferpool[emptyList.getFirst()];
             emptyList.remove(emptyList.getFirst());
-            System.out.println("Found an empty frame!");
             return buff;
         }
         else return null;

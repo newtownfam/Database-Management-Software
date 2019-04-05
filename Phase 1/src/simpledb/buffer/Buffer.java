@@ -171,7 +171,7 @@ public class Buffer {
    void assignToBlock(Block b) {
       flush();
       blk = b;
-      contents.read(blk);
+      //contents.read(blk);
       pins = 0;
    }
 
