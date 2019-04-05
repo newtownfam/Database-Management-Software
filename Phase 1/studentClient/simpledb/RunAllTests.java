@@ -28,7 +28,6 @@ public class RunAllTests {
 		CreateTestDB.main(args);
 		TestQueries1.main(args);
 		TestQueries2.main(args);
-		TestQueries3.main(args);
 
 		System.out.println("---------------------------------------- Advanced vs Basic statistics\n\n");
 		Test.main(args);
