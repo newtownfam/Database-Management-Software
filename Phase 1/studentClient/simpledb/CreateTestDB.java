@@ -8,12 +8,11 @@ public class CreateTestDB {
             Driver d = new SimpleDriver();
             conn = d.connect("jdbc:simpledb://localhost", null);
             Statement stmt = conn.createStatement();
-
-            String s = "create table CAR(ID int, Make varchar(10), Model varchar(10), Year int)";
+            String s = "create table CAR(CID int, Make varchar(10), Model varchar(10), Year int)";
             stmt.executeUpdate(s);
             System.out.println("Table CAR created.");
 
-            s = "insert into CAR(ID, Make, Model, Year) values ";
+            s = "insert into CAR(CID, Make, Model, Year) values ";
             String[] carVals =
                    {"(1, 'Mercedes', 'C100', 2001)",
                     "(2, 'Ford', 'Trailblazer', 2020)",
@@ -26,13 +25,12 @@ public class CreateTestDB {
                     "(9, 'Chrysler', 'Sebring', 2004)"};
             for (int i=0; i<carVals.length; i++)
                 stmt.executeUpdate(s + carVals[i]);
-            System.out.println("STUDENT records inserted.");
-
-            s = "create table DRIVER(ID int, FirstName varchar(8), LastName varchar(8))";
+            System.out.println("DRIVER records inserted.");
+            s = "create table DRIVER(DID int, FirstName varchar(8), LastName varchar(8))";
             stmt.executeUpdate(s);
             System.out.println("Table Driver created.");
 
-            s = "insert into DRIVER(ID, FirstName, LastName) values ";
+            s = "insert into DRIVER(DID, FirstName, LastName) values ";
             String[] driverVals =
                    {"(20, 'Baby', 'Driver')",
                     "(10, 'Nico', 'Fabbrini')",
@@ -40,7 +38,6 @@ public class CreateTestDB {
             for (int i=0; i<driverVals.length; i++)
                 stmt.executeUpdate(s + driverVals[i]);
             System.out.println("DRIVER records inserted.");
-
             s = "create table ACCIDENT(ID int, DriverID int, CarID int)";
             stmt.executeUpdate(s);
             System.out.println("Table ACCIDENT created.");
