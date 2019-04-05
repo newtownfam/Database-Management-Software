@@ -1,9 +1,8 @@
 import java.sql.*;
 import simpledb.remote.SimpleDriver;
 
-import javax.xml.transform.Result;
 
-public class TestQueries1 {
+public class TestQueries3 {
     public static void main(String[] args) {
         Connection conn = null;
         try {
@@ -12,17 +11,20 @@ public class TestQueries1 {
             conn = d.connect("jdbc:simpledb://localhost", null);
 
             // Step 2: execute the query
-            Statement stmt1 = conn.createStatement();
-            String qry = "select FirstName, LastName "
-                       + "from DRIVER ";
-            ResultSet rs = stmt1.executeQuery(qry);
+            Statement stmt = conn.createStatement();
+            String qry = "select Make, Model, Year "
+                    + "from CAR, ACCIDENT "
+                    + "where CID = CarID ";
 
+            ResultSet rs = stmt.executeQuery(qry);
+
+            System.out.println("Cars that got into accidents: ");
             // Step 3: loop through the result1 set
-            System.out.println("Print first and last names of all drivers:");
             while (rs.next()) {
-                String fname = rs.getString("FirstName");
-                String lname = rs.getString("LastName");
-                System.out.println(fname + " " + lname);
+                String make = rs.getString("Make");
+                String model = rs.getString("Model");
+                int year = rs.getInt("Year");
+                System.out.println("Make: " + make + ", Model: " + model + ", Year: " + year);
             }
             rs.close();
         }

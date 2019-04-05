@@ -14,10 +14,10 @@ public class TestQueries2 {
             Statement stmt = conn.createStatement();
             String qry = "select DriverID, FirstName, CarID "
                        + "from ACCIDENT, DRIVER "
-                       + "where DID = DriverID";
+                       + "where DID = DriverID ";
 
             ResultSet rs = stmt.executeQuery(qry);
-
+            System.out.println("List DriverID's, FirstNames, and CarID's of Drivers who got in accidents");
             // Step 3: loop through the result1 set
             while (rs.next()) {
                 int driverid = rs.getInt("DriverID");
