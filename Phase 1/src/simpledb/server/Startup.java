@@ -7,7 +7,7 @@ public class Startup {
    public static void main(String args[]) throws Exception {
       // configure and initialize the database
 	   SimpleDB.init(args[0]);
-	   System.out.print(SimpleDB.bufferMgr().toString());
+	   //System.out.print(SimpleDB.bufferMgr().toString());
 
       // create a registry specific for the server on the default port
       Registry reg = LocateRegistry.createRegistry(1099);
@@ -17,6 +17,7 @@ public class Startup {
       reg.rebind("simpledb", d);
       
       System.out.println("database server ready");
+
       System.out.print(SimpleDB.bufferMgr().toString());
 
    }

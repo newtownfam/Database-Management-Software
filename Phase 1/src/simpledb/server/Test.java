@@ -3,8 +3,8 @@ import simpledb.buffer.*;
 import simpledb.file.Block;
 
 public class Test {
-    public static void main(String args[]) throws Exception {
-        for (int i = 10; i < Math.pow(2, 16); i += 15000) {
+    public static void main(String args[]){
+        for (int i = 10; i < Math.pow(2, 14); i += 5000) {
             BufferMgr manager = new BufferMgr(i);
             AdvBufferMgr advManager = new AdvBufferMgr(i);
 
@@ -31,7 +31,7 @@ public class Test {
             System.out.println("Finished in: " + finish + " ms\n");
 
             System.out.println("------Finding last empty buffer------\n");
-            Block blk = new Block("LastFake.txt", 99999999);
+            Block blk = new Block("Fakefile.txt", 99999999);
 
             System.out.println("ADVANCED MANAGER: ");
             start = System.currentTimeMillis();
@@ -68,7 +68,7 @@ public class Test {
             System.out.println("ADVANCED MANAGER: ");
             start = System.currentTimeMillis();
             for (int replace = 0; replace < r; replace += 1) {
-                Block blk2 = new Block("ReplaceFile.txt", r);
+                Block blk2 = new Block("Fakefile.txt", r);
                     advManager.pin(blk2);
             }
             end = System.currentTimeMillis();
@@ -78,7 +78,7 @@ public class Test {
             System.out.println("BASIC MANAGER: ");
             start = System.currentTimeMillis();
             for (int replace = 0; replace < r; replace += 1) {
-                Block blk2 = new Block("ReplaceFile.txt", r);
+                Block blk2 = new Block("Fakefile.txt", r);
                 manager.pin(blk2);
             }
             end = System.currentTimeMillis();
@@ -88,6 +88,7 @@ public class Test {
 
             System.out.println("*********************************************************");
         }
+        System.out.println("Statistic Test finished.");
     }
 }
 

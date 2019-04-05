@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 
 /**
+ * CS4432-Project1
  * Manages the pinning and unpinning of buffers to blocks.
  * @author Edward Sciore
  *

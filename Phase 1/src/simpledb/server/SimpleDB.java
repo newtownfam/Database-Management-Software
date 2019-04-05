@@ -26,7 +26,8 @@ public class SimpleDB {
    public static int BUFFER_SIZE = 8;
    public static String LOG_FILE = "simpledb.log";
    private static FileMgr     fm;
-   private static BufferMgr   bm;
+   // CS4432-Project1 changed basic buffer manager to advanced (in all relevant locations)
+   private static AdvBufferMgr   bm;
    private static LogMgr      logm;
    private static MetadataMgr mdm;
    
@@ -76,7 +77,7 @@ public class SimpleDB {
     */
    public static void initFileLogAndBufferMgr(String dirname) {
       initFileAndLogMgr(dirname);
-      bm = new BufferMgr(BUFFER_SIZE);
+      bm = new AdvBufferMgr(BUFFER_SIZE);
    }
    
    /**
@@ -90,7 +91,7 @@ public class SimpleDB {
    }
    
    public static FileMgr     fileMgr()   { return fm; }
-   public static BufferMgr   bufferMgr() { return bm; }
+   public static AdvBufferMgr   bufferMgr() { return bm; }
    public static LogMgr      logMgr()    { return logm; }
    public static MetadataMgr mdMgr()     { return mdm; }
    

@@ -162,6 +162,8 @@ public class Buffer {
    }
 
    /**
+	* CS4432-Project1
+	* EDIT: we added an if statement to allow our test file to run with fake filenames
     * Reads the contents of the specified block into
     * the buffer's page.
     * If the buffer was dirty, then the contents
@@ -171,7 +173,9 @@ public class Buffer {
    void assignToBlock(Block b) {
       flush();
       blk = b;
-      //contents.read(blk);
+      if (!blk.fileName().equals("Fakefile.txt")) {
+         contents.read(blk);
+      }
       pins = 0;
    }
 
@@ -191,6 +195,7 @@ public class Buffer {
    }
 
    /**
+	* CS4432-Project1
     * Getter and setter for index
     */
    public int getIndex() {
@@ -202,6 +207,7 @@ public class Buffer {
    }
 
    /**
+	* CS4432-Project1
     * Getter and setter for time
     */
    public long getTime() {
@@ -213,6 +219,7 @@ public class Buffer {
    }
 
    /**
+	* CS4432-Project1
     * print out info for a given buffer. Assuming index in bufferpool is the bufferID. Also returns
     * block info and pin info
     * @return string concatenation of above
@@ -220,7 +227,10 @@ public class Buffer {
    @Override
    public String toString() {
       // buffer's id, the block it is allocated to, and whether the buffer is pinned
-      return "BufferID: " + logSequenceNumber + "; Block: " + block().toString() + "; Pinned: " + pins;
+	   if (blk != null) {
+		   return "BufferID: " + logSequenceNumber + "; Block: " + blk.toString() + "; Pinned: " + pins;
+	   }
+	   return "BufferID: " + logSequenceNumber + "; Block: null" + "; Pinned: " + pins;
    }
 
 }
