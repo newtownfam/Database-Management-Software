@@ -19,6 +19,7 @@ class AdvancedBufferMgr {
     private HashMap<Block, Integer> buffMap = new HashMap<>();
 
     /**
+     * CS4432-Project1:
      * Creates a buffer manager having the specified number
      * of buffer slots.
      * This constructor depends on both the {@link FileMgr} and
@@ -59,6 +60,7 @@ class AdvancedBufferMgr {
     }
 
     /**
+     * CS4432-Project1:
      * Pins a buffer to the specified block.
      * If there is already a buffer assigned to that block
      * then that buffer is used;
@@ -89,6 +91,7 @@ class AdvancedBufferMgr {
     }
 
     /**
+     * CS4432-Project1:
      * Allocates a new block in the specified file, and
      * pins a buffer to it.
      * Returns null (without allocating the block) if
@@ -134,6 +137,7 @@ class AdvancedBufferMgr {
     }
 
     /**
+     * CS4432-Project1:
      * Checks if a block exists in a buffer, return it using a hashmap in constant time
      * @param blk the block being searched for
      * @return the buffer containing the block, or null if no buffer contains the block
@@ -147,6 +151,7 @@ class AdvancedBufferMgr {
     }
 
     /**
+	 * CS4432-Project1:
      * Checks for an empty frame, or unpinned frame if none are empty
      * @return the frame for a block to be placed in
      */
@@ -157,6 +162,7 @@ class AdvancedBufferMgr {
             return empty;
         }
 
+        // otherwise find a buffer for replacement
         Buffer lruBuff = leastRecentlyUsed();
         if (lruBuff != null) {
             buffMap.remove(lruBuff.block());
@@ -166,6 +172,7 @@ class AdvancedBufferMgr {
     }
 
     /**
+	 * CS4432-Project1:
      * Returns an empty buffer in constant time using a linked list
      * @return an empty buffer
      */
@@ -179,6 +186,7 @@ class AdvancedBufferMgr {
     }
 
     /**
+	 * CS4432-Project1:
      * function to calculate least recently used buffer in pool
      * @return lru buffer
      */
@@ -195,14 +203,7 @@ class AdvancedBufferMgr {
     }
 
     /**
-     * getter for bufferpool in BufferMgr class
-     ** @return
-     */
-    Buffer[] getBufferpool() {
-        return bufferpool;
-    }
-
-    /**
+	 * CS4432-Project1:
      * Override of toString method to return info on all buffers in bufferpool concatenated into one string
      * @return string concatenation
      */
