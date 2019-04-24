@@ -26,7 +26,7 @@ public class RunAllTests {
 		System.out.println("---------------------------------------- Creating Test DB\n\n");
 		System.out.println("Test DB: \n");
 		CreateTestDB.main(args);
-		TestQueries1.main(args);
+		//TestQueries1.main(args);
 		TestQueries2.main(args);
 
 		System.out.println("---------------------------------------- Advanced vs Basic statistics\n\n");

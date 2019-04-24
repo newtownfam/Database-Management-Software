@@ -12,10 +12,10 @@ public class TestIndex1 {
 
 			// Step 2: execute the query
 			Statement stmt1 = conn.createStatement();
-			String qry = "CREATE INDEX didindex on DRIVER (DID)";
-			ResultSet rs = stmt1.executeQuery(qry);
-
-			rs.close();
+			String qry = "CREATE bt INDEX didindex on DRIVER (DID)";
+			System.out.println("Running bt");
+			stmt1.executeUpdate(qry);
+			System.out.println("Ran bt");
 		}
 		catch(Exception e) {
 			e.printStackTrace();
