@@ -19,7 +19,7 @@ import simpledb.index.btree.BTreeIndex; //in case we change to btree indexing
  * @author Edward Sciore
  */
 public class IndexInfo {
-   private String idxname, fldname;
+   private String idxname, fldname, idxtype;
    private Transaction tx;
    private TableInfo ti;
    private StatInfo si;
@@ -35,6 +35,24 @@ public class IndexInfo {
                     Transaction tx) {
       this.idxname = idxname;
       this.fldname = fldname;
+      this.tx = tx;
+      ti = SimpleDB.mdMgr().getTableInfo(tblname, tx);
+      si = SimpleDB.mdMgr().getStatInfo(tblname, ti, tx);
+   }
+
+   /**
+    * Creates an IndexInfo object for the specified index.
+    * @param idxname the name of the index
+    * @param tblname the name of the table
+    * @param fldname the name of the indexed field
+    * @param idxtype the type of index
+    * @param tx the calling transaction
+    */
+   public IndexInfo(String idxname, String tblname, String fldname, String idxtype,
+                    Transaction tx) {
+      this.idxname = idxname;
+      this.fldname = fldname;
+      this.idxtype = idxtype;
       this.tx = tx;
       ti = SimpleDB.mdMgr().getTableInfo(tblname, tx);
       si = SimpleDB.mdMgr().getStatInfo(tblname, ti, tx);

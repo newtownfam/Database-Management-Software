@@ -33,5 +33,8 @@ public class RunAllTests {
 		Test.main(args);
 
 		System.out.println("---------------------------------------- All tests finished successfully. Database still running... ");
+
+		System.out.println("---------------------------------------- Creating an index on driver ID... ");
+		TestIndex1.main(args);
 	}
 }

@@ -30,7 +30,7 @@ public class IndexUpdatePlanner implements UpdatePlanner {
       RID rid = s.getRid();
       
       // then modify each field, inserting an index record if appropriate
-      Map<String,IndexInfo> indexes = SimpleDB.mdMgr().getIndexInfo(tblname, tx);
+      Map<String,IndexInfo> indexes = SimpleDB.mdMgr().getIndexInfo(tblname, tx); // tblname has indextype
       Iterator<Constant> valIter = data.vals().iterator();
       for (String fldname : data.fields()) {
          Constant val = valIter.next();
@@ -114,7 +114,7 @@ public class IndexUpdatePlanner implements UpdatePlanner {
    }
    
    public int executeCreateIndex(CreateIndexData data, Transaction tx) {
-      SimpleDB.mdMgr().createIndex(data.indexName(), data.tableName(), data.fieldName(), tx);
+      SimpleDB.mdMgr().createIndex(data.indexName(), data.tableName(), data.fieldName(), data.indexType(), tx);
       return 0;
    }
 }
