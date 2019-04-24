@@ -106,6 +106,34 @@ public class EHashIndex implements Index{
 	 */
 	public void beforeFirst(Constant searchkey) {
 		close();
+		this.searchkey = searchkey;
+		int index = searchkey.hashCode() % (int)Math.pow(2, globalDepth);
+
+		// open the global scan
+		initGlobalTableScan();
+
+		// go to first bucket in globle table
+		globalTableScan.beforeFirst();
+		int pointer = -1;
+		while(globalTableScan.next()) {
+			int globalID = globalTableScan.getInt("globalBucket");
+			if (globalID == index) {
+				pointer = globalTableScan.getInt("bucketPointer");
+			}
+		}
+
+		// bucket not found
+		if (pointer == -1) {
+			System.out.println("Bucket not found");
+		}
+
+		// set current bucket
+		currBucket = pointer;
+
+		// set the index before the first record
+		String tblName = idxname + currBucket;
+		TableInfo ti = new TableInfo(tblName, sch);
+		ts = new TableScan(ti, tx);
 
 	}
 
