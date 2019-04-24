@@ -56,6 +56,7 @@ public class IndexUpdatePlanner implements UpdatePlanner {
       
       UpdateScan s = (UpdateScan) p.open();
       int count = 0;
+
       while(s.next()) {
          // first, delete the record's RID from every index
          RID rid = s.getRid();

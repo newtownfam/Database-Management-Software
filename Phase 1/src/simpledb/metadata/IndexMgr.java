@@ -63,7 +63,7 @@ public class IndexMgr {
    public void createIndex(String idxname, String tblname, String fldname, String idxtype, Transaction tx) {
       RecordFile rf = new RecordFile(ti, tx);
       rf.insert();
-      rf.setString("indexname", idxname);
+      rf.setString("idxtype", idxname);
       rf.setString("tablename", tblname);
       rf.setString("fieldname", fldname);
       rf.setString("indextype", idxtype);

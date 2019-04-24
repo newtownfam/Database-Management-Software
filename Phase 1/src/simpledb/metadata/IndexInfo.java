@@ -8,6 +8,7 @@ import simpledb.record.*;
 import simpledb.index.Index;
 import simpledb.index.hash.HashIndex; 
 import simpledb.index.btree.BTreeIndex; //in case we change to btree indexing
+import simpledb.index.ehash.EHashIndex; // our extended hash index
 
 
 /**
@@ -65,7 +66,17 @@ public class IndexInfo {
    public Index open() {
       Schema sch = schema();
       // Create new HashIndex for hash indexing
-      return new HashIndex(idxname, sch, tx);
+
+      if(this.idxtype.equals("sh")) {
+         return new HashIndex(idxname, sch, tx);
+      }
+      if(this.idxtype.equals("bt")) {
+         return new BTreeIndex(idxname, sch, tx);
+      }
+      if(this.idxtype.equals("eh")) {
+         return new EHashIndex(idxname, sch, tx);
+      }
+      return null;
    }
    
    /**
