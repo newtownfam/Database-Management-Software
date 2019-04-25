@@ -12,10 +12,15 @@ public class TestIndex1 {
 
 			// Step 2: execute the query
 			Statement stmt1 = conn.createStatement();
-			String qry = "CREATE bt INDEX didindex on DRIVER (DID)";
-			System.out.println("Running bt");
+			String qry = "CREATE ex INDEX didindex on DRIVER (DID)";
+			System.out.println("Running ex");
 			stmt1.executeUpdate(qry);
-			System.out.println("Ran bt");
+			System.out.println("Ran ex");
+
+			Statement stmt2 = conn.createStatement();
+			String qry2 = "insert into DRIVER (DID, FirstName, LastName)" +
+					" values (69, Lisa, Ann) ";
+			stmt2.executeUpdate(qry2);
 		}
 		catch(Exception e) {
 			e.printStackTrace();
