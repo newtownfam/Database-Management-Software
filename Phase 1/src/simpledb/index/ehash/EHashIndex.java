@@ -78,11 +78,11 @@ public class EHashIndex implements Index{
 			localTableScan.insert();
 			localTableScan.setInt("bucketID", 0);
 			localTableScan.setInt("capacity", bucketSize);
-			localTableScan.setInt("capacity", globalDepth);
+			localTableScan.setInt("depth", globalDepth);
 			localTableScan.insert();
 			localTableScan.setInt("bucketID", 1);
 			localTableScan.setInt("capacity", bucketSize);
-			localTableScan.setInt("capacity", globalDepth);
+			localTableScan.setInt("depth", globalDepth);
 
 			// point the global pointers to the local ones
 			globalTableScan.insert();
@@ -106,13 +106,17 @@ public class EHashIndex implements Index{
 	 */
 	public void beforeFirst(Constant searchkey) {
 		close();
+
+		// set the search key for the next method
 		this.searchkey = searchkey;
+
+		// find the index
 		int index = searchkey.hashCode() % (int)Math.pow(2, globalDepth);
 
 		// open the global scan
 		initGlobalTableScan();
 
-		// go to first bucket in globle table
+		// go to first bucket in global table
 		globalTableScan.beforeFirst();
 		int pointer = -1;
 		while(globalTableScan.next()) {
@@ -167,7 +171,260 @@ public class EHashIndex implements Index{
 	 * @param datarid the dataRID in the new index record.
 	 */
 	public void insert(Constant dataval, RID datarid) {
+		int counter = 0;
+		beforeFirst(dataval);
 
+		// check how many entries are in the table scan
+		ts.beforeFirst();
+		while(ts.next()) {
+			counter += 1;
+		}
+		ts.beforeFirst();
+
+		// insert into the bucket if the size is correct
+		if (counter < bucketSize) {
+			ts.insert();
+			ts.setInt("block", datarid.blockNumber());
+			ts.setInt("id", datarid.id());
+			ts.setVal("dataval", dataval);
+			return;
+		}
+
+		// get the local depth of the bucket
+		int depth = -1;
+		ts.beforeFirst();
+		while(ts.next()) {
+			if (localTableScan.getInt("bucketID") == currBucket) {
+				depth = localTableScan.getInt("depth");
+				break;
+			}
+		}
+
+		// if the local depth can be increased without increasing the global depth
+		if (depth < globalDepth) {
+			localTableScan.setInt("depth", depth + 1);
+
+			// split the bucket
+			int split = splitBucket(currBucket, depth);
+			int newBucketNumber = dataval.hashCode() % (int) Math.pow(2, globalDepth);
+
+			if (newBucketNumber == currBucket && split != 0) {
+				ts.beforeFirst();
+				ts.insert();
+				ts.setInt("block", datarid.blockNumber());
+				ts.setInt("id", datarid.id());
+				ts.setVal("dataval", dataval);
+
+				localTableScan.beforeFirst();
+				boolean found = false;
+				while (localTableScan.next()) {
+					if (localTableScan.getInt("bucketID") == newBucketNumber) {
+						found = true;
+						break;
+					}
+				}
+
+				if (!found) {
+					localTableScan.insert();
+					localTableScan.setInt("bucketID", newBucketNumber);
+					localTableScan.setInt("capacity", bucketSize);
+					localTableScan.setInt("depth", globalDepth);
+
+					// update global table
+					boolean globalFound = false;
+					updateGlobal(newBucketNumber, newBucketNumber);
+				}
+				return;
+			}
+
+			if (newBucketNumber != currBucket && split != bucketSize) {
+				String name = idxname + newBucketNumber;
+				TableInfo ti = new TableInfo(name, sch);
+				TableScan newScan = new TableScan(ti, tx);
+				newScan.beforeFirst();
+				newScan.insert();
+				newScan.setInt("block", datarid.blockNumber());
+				newScan.setInt("id", datarid.id());
+				newScan.setVal("dataval", dataval);
+				newScan.beforeFirst();
+				boolean found = false;
+				while (newScan.next()) {
+					if (newScan.getInt("bucketID") == newBucketNumber) {
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					localTableScan.insert();
+					localTableScan.setInt("bucketID", newBucketNumber);
+					localTableScan.setInt("capacity", bucketSize);
+					localTableScan.setInt("depth", globalDepth);
+					updateGlobal(newBucketNumber, newBucketNumber);
+				}
+				return;
+			}
+		}
+		int newMax = ((int)Math.pow(2, (globalDepth+1)))-1;
+		globalTableScan.beforeFirst();
+		int localDepth;
+
+		for(int i = (int)Math.pow(2, globalDepth); i<newMax+1; i++) {
+			if( i > 1) {
+				localDepth = i % (int) Math.pow(2, globalDepth);
+				String tblname = idxname + localDepth;
+				TableInfo ti = new TableInfo(tblname, sch);
+				TableScan tsCheckEmpty = new TableScan(ti, tx);
+				tsCheckEmpty.beforeFirst();
+				boolean empty = true;
+				if(tsCheckEmpty.next()) {
+					empty = false;
+				}
+				tsCheckEmpty.close();
+				if (!empty && localDepth > 1) {
+					globalTableScan.insert();
+					globalTableScan.setInt("globalBucket", i);
+					globalTableScan.setInt("bucketPointer", localDepth);
+					globalTableScan.setInt("depth", globalDepth);
+				}
+
+				else if (localDepth < 2) {
+					globalTableScan.insert();
+					globalTableScan.setInt("globalBucket", i);
+					globalTableScan.setInt("bucketPointer", localDepth);
+					globalTableScan.setInt("depth", globalDepth);
+
+				} else {
+					int x = 1;
+					localDepth = i % (int) Math.pow(2, (globalDepth-x));
+					while (true) {
+						tblname = idxname + localDepth;
+						ti = new TableInfo(tblname, sch);
+						tsCheckEmpty = new TableScan(ti, tx);
+						tsCheckEmpty.beforeFirst();
+						empty = true;
+
+						if(tsCheckEmpty.next()) {
+							empty = false;
+						}
+						tsCheckEmpty.close();
+						if (!empty && localDepth > 1) {
+							globalTableScan.insert();
+							globalTableScan.setInt("globalBucket", i);
+							globalTableScan.setInt("bucketPointer", localDepth);
+							globalTableScan.setInt("depth", globalDepth);
+							break;
+						}
+						else if (localDepth < 2) {
+							globalTableScan.insert();
+							globalTableScan.setInt("globalBucket", i);
+							globalTableScan.setInt("bucketPointer", localDepth);
+							globalTableScan.setInt("depth", globalDepth);
+							break;
+						} else {
+							x += 1;
+							if(globalDepth - x == 0) {
+								break;
+							}
+							localDepth = i % (int) Math.pow(2, (globalDepth - x));
+						}
+
+					}
+
+				}
+
+			}
+			// global depth is less than 1
+			else {
+				System.err.println("Should not be 0 or 1 (globaldepth < 1).");
+			}
+
+		}
+		// update global depth
+		globalDepth += 1;
+		globalTableScan.beforeFirst();
+		while(globalTableScan.next()) {
+			globalTableScan.setInt("depth", globalDepth);
+		}
+
+		//split bucket and insert value back into bucket
+		int split = splitBucket(currBucket, globalDepth-1);
+		int newBucketID = dataval.hashCode() % (int) Math.pow(2, globalDepth);
+
+		//insert into the old bucket
+		if (newBucketID == currBucket && split != 0) {
+			ts.beforeFirst();
+			ts.insert();
+			ts.setInt("block", datarid.blockNumber());
+			ts.setInt("id", datarid.id());
+			ts.setVal("dataval", dataval);
+
+			/*
+			 * update the bucket meta data if necessary
+			 */
+
+			localTableScan.beforeFirst();
+			boolean found = false;
+			while (localTableScan.next()) {
+				if (localTableScan.getInt("bucketID") == newBucketID) {
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				localTableScan.insert();
+				localTableScan.setInt("bucketID", newBucketID);
+				localTableScan.setInt("capacity", bucketSize);
+				localTableScan.setInt("depth", globalDepth);
+
+				//update the global table pointer
+				updateGlobal(newBucketID, newBucketID);
+
+			}
+			return;
+		}
+		 // check if we need to insert into a new bucket
+
+		if (newBucketID != currBucket && split != bucketSize) {
+			String tblname = idxname + newBucketID;
+			TableInfo ti = new TableInfo(tblname, sch);
+			TableScan tsNewBucket = new TableScan(ti, tx);
+
+			tsNewBucket.beforeFirst();
+			tsNewBucket.insert();
+			tsNewBucket.setInt("block", datarid.blockNumber());
+			tsNewBucket.setInt("id", datarid.id());
+			tsNewBucket.setVal("dataval", dataval);
+
+			/*
+			 * update the bucket meta data
+			 */
+
+			localTableScan.beforeFirst();
+			boolean found = false;
+			while (localTableScan.next()) {
+				if (localTableScan.getInt("bucketNum") == newBucketID) {
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				localTableScan.insert();
+				localTableScan.setInt("bucketID", newBucketID);
+				localTableScan.setInt("capacity", bucketSize);
+				localTableScan.setInt("depth", globalDepth);
+
+				/*
+				 * update the global table pointer
+				 */
+				updateGlobal(newBucketID, newBucketID);
+
+			}
+			return;
+		}
+		insert(dataval, datarid);
+		return;
 	}
 
 	/**
@@ -237,6 +494,66 @@ public class EHashIndex implements Index{
 	 */
 	public static int searchCost(int numblocks, int rpb){
 		return numblocks / HashIndex.NUM_BUCKETS;
+	}
+
+	public int splitBucket(int bucketID, int depth) {
+		int split = 0;
+
+		// create the new bucket ID
+		int newBucketID = 2 * depth + bucketID;
+
+		// create a table scan for the new bucket
+		String name = idxname + newBucketID;
+		TableInfo ti = new TableInfo(name, sch);
+		TableScan newScan = new TableScan(ti, tx);
+
+		newScan.beforeFirst();
+		ts.beforeFirst();
+		while(ts.next()) {
+			Constant val = ts.getVal("dataval");
+
+			if(val.hashCode() % (int)Math.pow(2, depth+1) == newBucketID) {
+				newScan.insert();
+				newScan.setInt("block", ts.getInt("block"));
+				newScan.setInt("id", ts.getInt("id"));
+				newScan.setVal("dataval", ts.getVal("dataval"));
+				ts.delete();
+				split += 1;
+			}
+		}
+		newScan.close();
+
+		if (split!=0) {
+			globalTableScan.beforeFirst();
+			while(globalTableScan.next()) {
+				if(globalTableScan.getInt("globalBucket") == newBucketID) {
+					globalTableScan.setInt("bucketPointer", newBucketID);
+					localTableScan.beforeFirst();
+					while(localTableScan.next()) {
+						if(localTableScan.getInt("bucketID") == newBucketID) {
+							return -1;
+						}
+					}
+				}
+				localTableScan.insert();
+				globalTableScan.setInt("bucketID", newBucketID);
+				localTableScan.setInt("capacity", bucketSize);
+				localTableScan.setInt("depth", globalDepth);
+				break;
+			}
+		}
+		return split;
+	}
+
+	public boolean updateGlobal(int bucketID, int pointer) {
+		globalTableScan.beforeFirst();
+		while(globalTableScan.next()) {
+			if(globalTableScan.getInt("bucketID") == bucketID) {
+				globalTableScan.setInt("bucketPointer", pointer);
+				return true;
+			}
+		}
+		return false;
 	}
 
 }
