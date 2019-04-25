@@ -73,7 +73,7 @@ public class IndexInfo {
       if(this.idxtype.equals("bt")) {
          return new BTreeIndex(idxname, sch, tx);
       }
-      if(this.idxtype.equals("eh")) {
+      if(this.idxtype.equals("ex")) {
          return new EHashIndex(idxname, sch, tx);
       }
       return null;

@@ -23,7 +23,7 @@ import simpledb.index.planner.IndexUpdatePlanner;
  * @author Edward Sciore
  */
 public class SimpleDB {
-   public static int BUFFER_SIZE = 8;
+   public static int BUFFER_SIZE = 5000;
    public static String LOG_FILE = "simpledb.log";
    private static FileMgr     fm;
    // CS4432-Project1 changed basic buffer manager to advanced (in all relevant locations)

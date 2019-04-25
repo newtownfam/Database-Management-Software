@@ -6,9 +6,10 @@ import simpledb.record.*;
 import simpledb.query.*;
 import simpledb.index.Index;
 
+import java.util.HashMap;
+
 public class EHashIndex implements Index{
 
-	public static int NUM_BUCKETS = 100;
 	private String idxname;
 	private Schema sch;
 	private Transaction tx;
@@ -25,13 +26,16 @@ public class EHashIndex implements Index{
 
 	// information about the global schema
 	private int globalDepth;
-	private int bucketSize = 4;
+	private int bucketSize = 30;
 	private int currBucket = -1;
+	private static HashMap<Integer, Integer> localDepthMap = new HashMap<>();
+
 
 	/**
 	 * Creates an extendable hash index
 	 */
 	public EHashIndex(String idxname, Schema sch, Transaction tx) {
+		System.out.println("Creating a hash index...");
 		this.idxname = idxname;
 		this.sch = sch;
 		this.tx = tx;
@@ -56,7 +60,6 @@ public class EHashIndex implements Index{
 		bucketScema = new Schema();
 		bucketScema.addIntField("bucketID");
 		bucketScema.addIntField("capacity");
-		bucketScema.addIntField("depth");
 
 		// Initialize the table scans
 		initGlobalTableScan();
@@ -66,6 +69,7 @@ public class EHashIndex implements Index{
 		globalTableScan.beforeFirst();
 		if(!globalTableScan.next()) {
 			globalDepth = 1;
+			globalTableScan.insert();
 			globalTableScan.setInt("depth", globalDepth);
 		} else {
 			globalDepth = globalTableScan.getInt("depth");
@@ -78,11 +82,14 @@ public class EHashIndex implements Index{
 			localTableScan.insert();
 			localTableScan.setInt("bucketID", 0);
 			localTableScan.setInt("capacity", bucketSize);
-			localTableScan.setInt("depth", globalDepth);
+			// store the local depth for this bucket in the hashmap
+			localDepthMap.put(0, globalDepth);
+
 			localTableScan.insert();
 			localTableScan.setInt("bucketID", 1);
 			localTableScan.setInt("capacity", bucketSize);
-			localTableScan.setInt("depth", globalDepth);
+			// store the local depth for this bucket in the hashmap
+			localDepthMap.put(1, globalDepth);
 
 			// point the global pointers to the local ones
 			globalTableScan.insert();
@@ -138,7 +145,6 @@ public class EHashIndex implements Index{
 		String tblName = idxname + currBucket;
 		TableInfo ti = new TableInfo(tblName, sch);
 		ts = new TableScan(ti, tx);
-
 	}
 
 	/**
@@ -171,8 +177,12 @@ public class EHashIndex implements Index{
 	 * @param datarid the dataRID in the new index record.
 	 */
 	public void insert(Constant dataval, RID datarid) {
+		System.out.println("Inserting value: dataval = " + dataval + " id = " + datarid.id() + " block# = " + datarid.blockNumber());
 		int counter = 0;
+		int depth = -1;
 		beforeFirst(dataval);
+		initLocalTableScan();
+		initGlobalTableScan();
 
 		// check how many entries are in the table scan
 		ts.beforeFirst();
@@ -187,34 +197,28 @@ public class EHashIndex implements Index{
 			ts.setInt("block", datarid.blockNumber());
 			ts.setInt("id", datarid.id());
 			ts.setVal("dataval", dataval);
+			System.out.println("--value inserted--\n");
+			close();
 			return;
 		}
 
-		// get the local depth of the bucket
-		int depth = -1;
-		ts.beforeFirst();
-		while(ts.next()) {
-			if (localTableScan.getInt("bucketID") == currBucket) {
-				depth = localTableScan.getInt("depth");
-				break;
-			}
+		// get the local depth from the hashmap
+		if(currBucket != -1) {
+			depth = localDepthMap.get(currBucket);
 		}
 
 		// if the local depth can be increased without increasing the global depth
 		if (depth < globalDepth) {
-			localTableScan.setInt("depth", depth + 1);
+			System.out.println("Splitting bucket: " + currBucket);
+			localDepthMap.remove(currBucket);
+			localDepthMap.put(currBucket, depth+1);
 
 			// split the bucket
 			int split = splitBucket(currBucket, depth);
 			int newBucketNumber = dataval.hashCode() % (int) Math.pow(2, globalDepth);
-
+			System.out.println("after split");
 			if (newBucketNumber == currBucket && split != 0) {
-				ts.beforeFirst();
-				ts.insert();
-				ts.setInt("block", datarid.blockNumber());
-				ts.setInt("id", datarid.id());
-				ts.setVal("dataval", dataval);
-
+				updatets(datarid.blockNumber(), datarid.id(), dataval);
 				localTableScan.beforeFirst();
 				boolean found = false;
 				while (localTableScan.next()) {
@@ -225,19 +229,18 @@ public class EHashIndex implements Index{
 				}
 
 				if (!found) {
-					localTableScan.insert();
-					localTableScan.setInt("bucketID", newBucketNumber);
-					localTableScan.setInt("capacity", bucketSize);
-					localTableScan.setInt("depth", globalDepth);
+					updateLocal(newBucketNumber);
 
 					// update global table
-					boolean globalFound = false;
 					updateGlobal(newBucketNumber, newBucketNumber);
 				}
+				System.out.println("--value inserted--\n");
+				close();
 				return;
 			}
 
 			if (newBucketNumber != currBucket && split != bucketSize) {
+				System.out.println("currebucket != newbucketnumber");
 				String name = idxname + newBucketNumber;
 				TableInfo ti = new TableInfo(name, sch);
 				TableScan newScan = new TableScan(ti, tx);
@@ -248,98 +251,24 @@ public class EHashIndex implements Index{
 				newScan.setVal("dataval", dataval);
 				newScan.beforeFirst();
 				boolean found = false;
-				while (newScan.next()) {
-					if (newScan.getInt("bucketID") == newBucketNumber) {
+				while (localTableScan.next()) {
+					if (localTableScan.getInt("bucketID") == newBucketNumber) {
 						found = true;
 						break;
 					}
 				}
 				if (!found) {
-					localTableScan.insert();
-					localTableScan.setInt("bucketID", newBucketNumber);
-					localTableScan.setInt("capacity", bucketSize);
-					localTableScan.setInt("depth", globalDepth);
+					updateLocal(newBucketNumber);
 					updateGlobal(newBucketNumber, newBucketNumber);
 				}
+				System.out.println("--value inserted--\n");
+				close();
 				return;
 			}
 		}
-		int newMax = ((int)Math.pow(2, (globalDepth+1)))-1;
-		globalTableScan.beforeFirst();
-		int localDepth;
 
-		for(int i = (int)Math.pow(2, globalDepth); i<newMax+1; i++) {
-			if( i > 1) {
-				localDepth = i % (int) Math.pow(2, globalDepth);
-				String tblname = idxname + localDepth;
-				TableInfo ti = new TableInfo(tblname, sch);
-				TableScan tsCheckEmpty = new TableScan(ti, tx);
-				tsCheckEmpty.beforeFirst();
-				boolean empty = true;
-				if(tsCheckEmpty.next()) {
-					empty = false;
-				}
-				tsCheckEmpty.close();
-				if (!empty && localDepth > 1) {
-					globalTableScan.insert();
-					globalTableScan.setInt("globalBucket", i);
-					globalTableScan.setInt("bucketPointer", localDepth);
-					globalTableScan.setInt("depth", globalDepth);
-				}
-
-				else if (localDepth < 2) {
-					globalTableScan.insert();
-					globalTableScan.setInt("globalBucket", i);
-					globalTableScan.setInt("bucketPointer", localDepth);
-					globalTableScan.setInt("depth", globalDepth);
-
-				} else {
-					int x = 1;
-					localDepth = i % (int) Math.pow(2, (globalDepth-x));
-					while (true) {
-						tblname = idxname + localDepth;
-						ti = new TableInfo(tblname, sch);
-						tsCheckEmpty = new TableScan(ti, tx);
-						tsCheckEmpty.beforeFirst();
-						empty = true;
-
-						if(tsCheckEmpty.next()) {
-							empty = false;
-						}
-						tsCheckEmpty.close();
-						if (!empty && localDepth > 1) {
-							globalTableScan.insert();
-							globalTableScan.setInt("globalBucket", i);
-							globalTableScan.setInt("bucketPointer", localDepth);
-							globalTableScan.setInt("depth", globalDepth);
-							break;
-						}
-						else if (localDepth < 2) {
-							globalTableScan.insert();
-							globalTableScan.setInt("globalBucket", i);
-							globalTableScan.setInt("bucketPointer", localDepth);
-							globalTableScan.setInt("depth", globalDepth);
-							break;
-						} else {
-							x += 1;
-							if(globalDepth - x == 0) {
-								break;
-							}
-							localDepth = i % (int) Math.pow(2, (globalDepth - x));
-						}
-
-					}
-
-				}
-
-			}
-			// global depth is less than 1
-			else {
-				System.err.println("Should not be 0 or 1 (globaldepth < 1).");
-			}
-
-		}
 		// update global depth
+		System.out.println("Increasing global depth to: " + globalDepth+1);
 		globalDepth += 1;
 		globalTableScan.beforeFirst();
 		while(globalTableScan.next()) {
@@ -349,42 +278,10 @@ public class EHashIndex implements Index{
 		//split bucket and insert value back into bucket
 		int split = splitBucket(currBucket, globalDepth-1);
 		int newBucketID = dataval.hashCode() % (int) Math.pow(2, globalDepth);
+		boolean ret = updateSplit(newBucketID, split, datarid, dataval);
+		if (ret) { close(); return; }
 
-		//insert into the old bucket
-		if (newBucketID == currBucket && split != 0) {
-			ts.beforeFirst();
-			ts.insert();
-			ts.setInt("block", datarid.blockNumber());
-			ts.setInt("id", datarid.id());
-			ts.setVal("dataval", dataval);
-
-			/*
-			 * update the bucket meta data if necessary
-			 */
-
-			localTableScan.beforeFirst();
-			boolean found = false;
-			while (localTableScan.next()) {
-				if (localTableScan.getInt("bucketID") == newBucketID) {
-					found = true;
-					break;
-				}
-			}
-
-			if (!found) {
-				localTableScan.insert();
-				localTableScan.setInt("bucketID", newBucketID);
-				localTableScan.setInt("capacity", bucketSize);
-				localTableScan.setInt("depth", globalDepth);
-
-				//update the global table pointer
-				updateGlobal(newBucketID, newBucketID);
-
-			}
-			return;
-		}
 		 // check if we need to insert into a new bucket
-
 		if (newBucketID != currBucket && split != bucketSize) {
 			String tblname = idxname + newBucketID;
 			TableInfo ti = new TableInfo(tblname, sch);
@@ -403,28 +300,27 @@ public class EHashIndex implements Index{
 			localTableScan.beforeFirst();
 			boolean found = false;
 			while (localTableScan.next()) {
-				if (localTableScan.getInt("bucketNum") == newBucketID) {
+				if (localTableScan.getInt("bucketID") == newBucketID) {
 					found = true;
 					break;
 				}
 			}
 
 			if (!found) {
-				localTableScan.insert();
-				localTableScan.setInt("bucketID", newBucketID);
-				localTableScan.setInt("capacity", bucketSize);
-				localTableScan.setInt("depth", globalDepth);
-
+				updateLocal(newBucketID);
 				/*
 				 * update the global table pointer
 				 */
 				updateGlobal(newBucketID, newBucketID);
 
 			}
+			System.out.println("--value inserted--\n");
+			close();
 			return;
 		}
 		insert(dataval, datarid);
-		return;
+		System.out.println("--value inserted--\n");
+		close();
 	}
 
 	/**
@@ -434,6 +330,7 @@ public class EHashIndex implements Index{
 	 * @param datarid the dataRID of the deleted index record
 	 */
 	public void delete(Constant dataval, RID datarid) {
+		System.out.println("Deleting value: dataval = " + dataval + " id = " + datarid.id());
 		beforeFirst(dataval);
 		while(next())
 			if (getDataRid().equals(datarid)) {
@@ -446,6 +343,7 @@ public class EHashIndex implements Index{
 	 * Closes the index.
 	 */
 	public void close() {
+		System.out.println("Closing scans...");
 		closeScan(globalTableScan);
 		closeScan(localTableScan);
 		if(ts != null) {
@@ -456,9 +354,9 @@ public class EHashIndex implements Index{
 	/**
 	 * Initializes the global table scan
 	 */
-	public void initGlobalTableScan() {
-		String tblname = idxname + "GlobalInfo";
-		TableInfo ti = new TableInfo(tblname, sch);
+	private void initGlobalTableScan() {
+		String tblname = idxname + "GlobalTable";
+		TableInfo ti = new TableInfo(tblname, globalSchema);
 		globalTableScan = new TableScan(ti, tx);
 		globalTableScan.beforeFirst();
 	}
@@ -466,9 +364,9 @@ public class EHashIndex implements Index{
 	/**
 	 * Initializes the local table scan
 	 */
-	public void initLocalTableScan() {
+	private void initLocalTableScan() {
 		String tblname = idxname + "BucketInfo";
-		TableInfo ti = new TableInfo(tblname, sch);
+		TableInfo ti = new TableInfo(tblname, bucketScema);
 		localTableScan = new TableScan(ti, tx);
 		localTableScan.beforeFirst();
 	}
@@ -476,7 +374,7 @@ public class EHashIndex implements Index{
 	/**
 	 * Closes the given table scan
 	 */
-	public void closeScan(TableScan scan) {
+	private void closeScan(TableScan scan) {
 		if(scan != null) {
 			scan.close();
 		}
@@ -492,11 +390,17 @@ public class EHashIndex implements Index{
 	 * @param rpb the number of records per block (not used here)
 	 * @return the cost of traversing the index
 	 */
-	public static int searchCost(int numblocks, int rpb){
+	private static int searchCost(int numblocks, int rpb){
 		return numblocks / HashIndex.NUM_BUCKETS;
 	}
 
-	public int splitBucket(int bucketID, int depth) {
+	/**
+	 * Splits the given bucket
+	 * @param bucketID given bucket ID
+	 * @param depth depth of the current bucket
+	 * @return the value of the split
+	 */
+	private int splitBucket(int bucketID, int depth) {
 		int split = 0;
 
 		// create the new bucket ID
@@ -535,23 +439,90 @@ public class EHashIndex implements Index{
 						}
 					}
 				}
+				localDepthMap.put(newBucketID, globalDepth);
 				localTableScan.insert();
-				globalTableScan.setInt("bucketID", newBucketID);
+				localTableScan.setInt("bucketID", newBucketID);
 				localTableScan.setInt("capacity", bucketSize);
-				localTableScan.setInt("depth", globalDepth);
 				break;
 			}
 		}
 		return split;
 	}
 
-	public boolean updateGlobal(int bucketID, int pointer) {
+	/**
+	 * Updates the global table
+	 * @param bucketID ID of the global bucket
+	 * @param pointer the pointer to the local bucket
+	 * @return true if successful, false other
+	 */
+	private void updateGlobal(int bucketID, int pointer) {
 		globalTableScan.beforeFirst();
 		while(globalTableScan.next()) {
-			if(globalTableScan.getInt("bucketID") == bucketID) {
+			if(globalTableScan.getInt("globalBucket") == bucketID) {
 				globalTableScan.setInt("bucketPointer", pointer);
-				return true;
 			}
+		}
+	}
+
+	/**
+	 * Updates the global table schema ts
+	 * @param block the block
+	 * @param id the block id
+	 * @param dataval the dataval
+	 */
+	private void updatets(int block, int id, Constant dataval) {
+		if(ts != null) {
+			ts.beforeFirst();
+			ts.insert();
+			ts.setInt("block", block);
+			ts.setInt("id", id);
+			ts.setVal("dataval", dataval);
+		}
+	}
+
+	/**
+	 * Updates the local schema with a new bucket
+	 * @param newBucketID the ID of the new bucket
+	 */
+	private void updateLocal(int newBucketID) {
+		localTableScan.insert();
+		localTableScan.setInt("bucketID", newBucketID);
+		localTableScan.setInt("capacity", bucketSize);
+		localDepthMap.put(newBucketID, globalDepth);
+	}
+
+	/**
+	 * Performs updates on local schema after a split
+	 * @param newBucketID the newly split bucket
+	 * @param split value confirming a split is needed
+	 * @param datarid the rid of the new bucket
+	 * @param dataval the dataval of the new bucket
+	 */
+	private boolean updateSplit(int newBucketID, int split, RID datarid, Constant dataval) {
+		if (newBucketID == currBucket && split != 0) {
+			updatets(datarid.blockNumber(), datarid.id(), dataval);
+
+			/*
+			 * update the bucket meta data if necessary
+			 */
+
+			localTableScan.beforeFirst();
+			boolean found = false;
+			while (localTableScan.next()) {
+				if (localTableScan.getInt("bucketID") == newBucketID) {
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				updateLocal(newBucketID);
+
+				//update the global table pointer
+				updateGlobal(newBucketID, newBucketID);
+
+			}
+			return true;
 		}
 		return false;
 	}

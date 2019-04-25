@@ -72,7 +72,7 @@ public class IndexMgr {
 
    /**
     * Returns a map containing the index info for all indexes
-    * on the specified table.
+    * on the specified table. k
     * @param tblname the name of the table
     * @param tx the calling transaction
     * @return a map of IndexInfo objects, keyed by their field names
